@@ -231,6 +231,11 @@ export default function Admin() {
                           <span className={`badge ${r.score / r.total >= 0.6 ? 'badge-green' : 'badge-red'}`}>
                             {r.score}/{r.total}
                           </span>
+                          {r.bonanzaScore > 0 && (
+                            <span style={{ color: 'var(--gold)', fontWeight: 700, marginLeft: 6, fontSize: 13 }}>
+                              +{r.bonanzaScore}
+                            </span>
+                          )}
                         </td>
                         <td style={{ color: r.score / r.total >= 0.6 ? 'var(--ok)' : 'var(--fail)', fontWeight: 600 }}>
                           {Math.round((r.score / r.total) * 100)}%

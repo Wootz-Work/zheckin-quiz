@@ -249,6 +249,7 @@ app.get('/api/admin/results', adminAuth, (req, res) => {
       }
     }),
     bonanza: allBonanza.filter((b) => b.session_id === s.id).sort((a, b) => a.question_no - b.question_no),
+    bonanzaScore: allBonanza.filter((b) => b.session_id === s.id && b.answer && b.answer.trim()).length,
   }))
 
   res.json(results)
@@ -263,7 +264,7 @@ app.get('/api/admin/export', adminAuth, (req, res) => {
     .all()
   const questions = require('./questions')
 
-  let csv = 'Email,Score,Percentage,TimeTaken(s),SubmittedAt'
+  let csv = 'Email,Score,BonanzaScore,Percentage,TimeTaken(s),SubmittedAt'
   questions.forEach((q) => { csv += `,Q${q.id}` })
   csv += '\n'
 
@@ -275,7 +276,9 @@ app.get('/api/admin/export', adminAuth, (req, res) => {
     const timeSec = s.time_taken ? Math.floor(s.time_taken / 1000) : ''
     const submittedAt = s.completed_at ? new Date(s.completed_at).toISOString() : ''
 
-    csv += `${s.email},${s.score}/${s.total},${pct}%,${timeSec},${submittedAt}`
+    const bonanzaAnswers = db.prepare('SELECT answer FROM bonanza_answers WHERE session_id = ?').all(s.id)
+    const bonanzaScore = bonanzaAnswers.filter((b) => b.answer && b.answer.trim()).length
+    csv += `${s.email},${s.score}/${s.total},+${bonanzaScore},${pct}%,${timeSec},${submittedAt}`
     questions.forEach((q) => {
       const a = answers.find((a) => a.question_id === q.id)
       csv += `,${a?.selected ?? ''}`
