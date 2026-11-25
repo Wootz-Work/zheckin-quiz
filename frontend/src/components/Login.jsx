@@ -1,10 +1,19 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Logo } from './Logo.jsx'
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [quizWindow, setQuizWindow] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/window').then((r) => r.json()).then(setQuizWindow).catch(() => {})
+  }, [])
+
+  const fmt = (ms) => new Date(ms).toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit',
+  })
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -56,6 +65,12 @@ export default function Login({ onLogin }) {
         <p className="login-subtitle">
           Test your knowledge of the ZheckIn platform
         </p>
+        {quizWindow && (quizWindow.opensAt || quizWindow.closesAt) && (
+          <p style={{ fontSize: 13, color: 'var(--gold)', textAlign: 'center', margin: '-4px 0 14px' }}>
+            Quiz open {quizWindow.opensAt ? `from ${fmt(quizWindow.opensAt)}` : ''}
+            {quizWindow.closesAt ? ` until ${fmt(quizWindow.closesAt)}` : ''} IST
+          </p>
+        )}
 
         <div className="login-badges">
           <span className="login-badge">

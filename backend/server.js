@@ -65,7 +65,11 @@ const adminPassword = () => process.env.ADMIN_PASSWORD || getSetting('admin_pass
 
 // Optional quiz window (ISO times, e.g. 2026-11-26T15:00:00+05:30). New attempts are refused outside it;
 // attempts already started can finish.
+// The admin panel's setting wins; the environment variable is the fallback.
+const WINDOW_KEYS = { QUIZ_OPENS_AT: 'opens_at', QUIZ_CLOSES_AT: 'closes_at' }
 const windowTime = (name) => {
+  const stored = getSetting(WINDOW_KEYS[name])
+  if (stored !== null) return stored === '' ? null : Number(stored)
   const t = Date.parse(process.env[name] || '')
   return Number.isNaN(t) ? null : t
 }
@@ -169,6 +173,12 @@ app.post('/api/session', (req, res) => {
 })
 
 // GET /api/questions — questions without answers
+app.get('/api/session/:id', (req, res) => {
+  const s = db.prepare('SELECT completed_at FROM sessions WHERE id = ?').get(req.params.id)
+  if (!s) return res.status(404).json({ exists: false })
+  res.json({ exists: true, completed: !!s.completed_at })
+})
+
 app.get('/api/window', (_req, res) => {
   res.json({ opensAt: windowTime('QUIZ_OPENS_AT'), closesAt: windowTime('QUIZ_CLOSES_AT'), now: Date.now() })
 })
@@ -258,7 +268,11 @@ app.post('/api/admin/verify', (req, res) => {
 })
 
 app.get('/api/admin/settings', adminAuth, (req, res) => {
-  res.json({ timer_seconds: parseInt(getSetting('timer_seconds')) })
+  res.json({
+    timer_seconds: parseInt(getSetting('timer_seconds')),
+    opens_at: windowTime('QUIZ_OPENS_AT'),
+    closes_at: windowTime('QUIZ_CLOSES_AT'),
+  })
 })
 
 app.post('/api/admin/settings', adminAuth, (req, res) => {
@@ -270,7 +284,39 @@ app.post('/api/admin/settings', adminAuth, (req, res) => {
     }
     db.prepare('UPDATE settings SET value = ? WHERE key = ?').run(String(t), 'timer_seconds')
   }
-  res.json({ success: true, timer_seconds: parseInt(getSetting('timer_seconds')) })
+  // Quiz window: numbers (epoch ms) set it, null clears it, undefined leaves it unchanged.
+  const { opens_at, closes_at } = req.body
+  const valid = (v) => v === null || v === undefined || (Number.isFinite(v) && v > 0)
+  if (!valid(opens_at) || !valid(closes_at)) return res.status(400).json({ error: 'Invalid start or end time' })
+  const nextOpen = opens_at === undefined ? windowTime('QUIZ_OPENS_AT') : opens_at
+  const nextClose = closes_at === undefined ? windowTime('QUIZ_CLOSES_AT') : closes_at
+  if (nextOpen && nextClose && nextClose <= nextOpen) {
+    return res.status(400).json({ error: 'End time must be after the start time' })
+  }
+  const put = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)')
+  if (opens_at !== undefined) put.run('opens_at', opens_at === null ? '' : String(opens_at))
+  if (closes_at !== undefined) put.run('closes_at', closes_at === null ? '' : String(closes_at))
+  res.json({
+    success: true,
+    timer_seconds: parseInt(getSetting('timer_seconds')),
+    opens_at: windowTime('QUIZ_OPENS_AT'),
+    closes_at: windowTime('QUIZ_CLOSES_AT'),
+  })
+})
+
+// Let a person take the quiz again: removes all their attempts, answers and bonanza answers.
+app.post('/api/admin/reset', adminAuth, (req, res) => {
+  const email = String(req.body?.email || '').trim().toLowerCase()
+  if (!email) return res.status(400).json({ error: 'email is required' })
+  const ids = db.prepare('SELECT id FROM sessions WHERE email = ?').all(email).map((r) => r.id)
+  db.transaction(() => {
+    for (const id of ids) {
+      db.prepare('DELETE FROM answers WHERE session_id = ?').run(id)
+      db.prepare('DELETE FROM bonanza_answers WHERE session_id = ?').run(id)
+      db.prepare('DELETE FROM sessions WHERE id = ?').run(id)
+    }
+  })()
+  res.json({ success: true, removedAttempts: ids.length })
 })
 
 app.get('/api/admin/results', adminAuth, (req, res) => {

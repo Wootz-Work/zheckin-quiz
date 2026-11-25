@@ -13,6 +13,22 @@ function fmtTime(ms) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
+// epoch ms <-> value of an <input type="datetime-local"> (the admin's local time, i.e. IST)
+function toLocalInput(ms) {
+  if (!ms) return ''
+  const d = new Date(ms)
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+}
+const fromLocalInput = (v) => (v ? new Date(v).getTime() : null)
+
+function windowStatus(opensAt, closesAt) {
+  const now = Date.now()
+  if (!opensAt && !closesAt) return { text: 'No window set: the quiz is open any time', color: 'var(--text-3)' }
+  if (opensAt && now < opensAt) return { text: 'Not open yet', color: 'var(--warn)' }
+  if (closesAt && now > closesAt) return { text: 'Closed', color: 'var(--fail)' }
+  return { text: 'Open now', color: 'var(--ok)' }
+}
+
 function inputStyle(error) {
   return {
     width: '100%', padding: '10px 13px', background: 'var(--surface-2)',
@@ -33,6 +49,9 @@ export default function Admin() {
   const [timerSec, setTimerSec]         = useState(30)
   const [saveFeedback, setSaveFeedback] = useState('')
   const [expanded, setExpanded]         = useState(null)
+  const [opensInput, setOpensInput]     = useState('')
+  const [closesInput, setClosesInput]   = useState('')
+  const [windowMsg, setWindowMsg]       = useState('')
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -47,6 +66,38 @@ export default function Admin() {
     } catch { setLoginErr('Connection failed') }
   }
 
+  const loadResults = () =>
+    fetch(`/api/admin/results?password=${storedPw}`).then((r) => r.json()).then(setResults)
+
+  const saveWindow = async (clear = false) => {
+    const body = clear
+      ? { opens_at: null, closes_at: null }
+      : { opens_at: fromLocalInput(opensInput), closes_at: fromLocalInput(closesInput) }
+    const res = await fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: storedPw, ...body }),
+    })
+    const data = await res.json()
+    if (!res.ok) { setWindowMsg(data.error || 'Could not save'); return }
+    setSettings(data)
+    setOpensInput(toLocalInput(data.opens_at))
+    setClosesInput(toLocalInput(data.closes_at))
+    setWindowMsg(clear ? '✓ Cleared' : '✓ Saved')
+    setTimeout(() => setWindowMsg(''), 2500)
+  }
+
+  const restartUser = async (email) => {
+    if (!window.confirm(`Delete ${email}'s attempt and answers so they can take the quiz again?`)) return
+    const res = await fetch('/api/admin/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: storedPw, email }),
+    })
+    if (res.ok) { setExpanded(null); loadResults() }
+    else window.alert('Could not restart this user')
+  }
+
   useEffect(() => {
     if (!loggedIn) return
     Promise.all([
@@ -57,6 +108,8 @@ export default function Admin() {
       setSettings(s)
       setTimerMin(Math.floor(s.timer_seconds / 60))
       setTimerSec(s.timer_seconds % 60)
+      setOpensInput(toLocalInput(s.opens_at))
+      setClosesInput(toLocalInput(s.closes_at))
     })
   }, [loggedIn, storedPw])
 
@@ -68,7 +121,7 @@ export default function Admin() {
       body: JSON.stringify({ password: storedPw, timer_seconds: total }),
     })
     if (res.ok) {
-      setSettings({ timer_seconds: total })
+      setSettings((prev) => ({ ...prev, timer_seconds: total }))
       setSaveFeedback('✓ Saved')
       setTimeout(() => setSaveFeedback(''), 2500)
     }
@@ -203,6 +256,59 @@ export default function Admin() {
           </div>
         </div>
 
+        {/* ── Quiz window ── */}
+        <div className="admin-card">
+          <div className="admin-section-title">Quiz Window (IST)</div>
+          <p style={{ color: 'var(--text-3)', fontSize: 12.5, margin: '0 0 12px' }}>
+            People can start the quiz only between these times. Anyone who started before the end time can finish.
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            {[['Start', opensInput, setOpensInput], ['End', closesInput, setClosesInput]].map(([label, val, set]) => (
+              <label key={label} style={{ display: 'flex', alignItems: 'center', gap: 7, color: 'var(--text-3)', fontSize: 13 }}>
+                {label}
+                <input
+                  type="datetime-local"
+                  value={val}
+                  onChange={(e) => set(e.target.value)}
+                  style={{ ...inputStyle(false), width: 'auto', colorScheme: 'dark' }}
+                />
+              </label>
+            ))}
+            <button
+              onClick={() => saveWindow(false)}
+              style={{
+                padding: '9px 20px', background: 'var(--gold)', color: '#0A0B0F', border: 'none',
+                borderRadius: 'var(--r-sm)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              Save Window
+            </button>
+            <button
+              onClick={() => saveWindow(true)}
+              style={{
+                padding: '9px 16px', background: 'transparent', color: 'var(--text-3)',
+                border: '1px solid var(--border-2)', borderRadius: 'var(--r-sm)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              Clear
+            </button>
+            {windowMsg && <span style={{ fontSize: 12.5, color: windowMsg.startsWith('✓') ? 'var(--ok)' : 'var(--fail)' }}>{windowMsg}</span>}
+          </div>
+          {(() => {
+            const st = windowStatus(settings.opens_at, settings.closes_at)
+            return (
+              <div style={{ marginTop: 10, fontSize: 12.5 }}>
+                <span style={{ color: st.color, fontWeight: 600 }}>{st.text}</span>
+                {(settings.opens_at || settings.closes_at) && (
+                  <span style={{ color: 'var(--text-3)' }}>
+                    {'  ·  '}{settings.opens_at ? fmtDate(settings.opens_at) : 'any time'} → {settings.closes_at ? fmtDate(settings.closes_at) : 'no end'}
+                  </span>
+                )}
+              </div>
+            )
+          })()}
+        </div>
+
         {/* ── Results ── */}
         <div className="admin-card">
           <div className="admin-section-title">
@@ -221,6 +327,7 @@ export default function Admin() {
                     <th>%</th>
                     <th>Time</th>
                     <th>Submitted At</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -238,11 +345,24 @@ export default function Admin() {
                         </td>
                         <td style={{ fontFamily: 'monospace' }}>{fmtTime(r.time_taken)}</td>
                         <td style={{ fontSize: 12 }}>{fmtDate(r.completed_at)}</td>
+                        <td>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); restartUser(r.email) }}
+                            title="Delete this attempt so the person can take the quiz again"
+                            style={{
+                              padding: '5px 12px', background: 'transparent', color: 'var(--warn)',
+                              border: '1px solid var(--border-2)', borderRadius: 'var(--r-xs)', fontSize: 12,
+                              cursor: 'pointer', fontFamily: 'inherit',
+                            }}
+                          >
+                            Restart
+                          </button>
+                        </td>
                       </tr>
 
                       {expanded === r.id && (
                         <tr>
-                          <td colSpan={5} style={{ background: 'var(--bg)', padding: '14px 16px' }}>
+                          <td colSpan={6} style={{ background: 'var(--bg)', padding: '14px 16px' }}>
                             <div style={{
                               display: 'grid',
                               gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',

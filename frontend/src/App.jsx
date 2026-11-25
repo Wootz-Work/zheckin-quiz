@@ -15,10 +15,7 @@ export default function App() {
       return
     }
 
-    try {
-      const saved = localStorage.getItem('quiz_session')
-      if (saved) {
-        const s = JSON.parse(saved)
+    const restore = (s) => {
         if (s.submitted) {
           setSession(s)
           setPage(s.bonanzaDone ? 'results' : 'bonanza')
@@ -38,13 +35,25 @@ export default function App() {
         }
         localStorage.removeItem('quiz_session')
         localStorage.removeItem('quiz_answers')
-      }
-    } catch {
+        setPage('login')
+    }
+    const reset = () => {
       localStorage.removeItem('quiz_session')
       localStorage.removeItem('quiz_answers')
+      setPage('login')
     }
 
-    setPage('login')
+    let s
+    try {
+      const saved = localStorage.getItem('quiz_session')
+      s = saved ? JSON.parse(saved) : null
+    } catch { s = null }
+    if (!s || !s.sessionId) { reset(); return }
+
+    // If the admin restarted this person's attempt, the server no longer has the session: start fresh.
+    fetch(`/api/session/${s.sessionId}`)
+      .then((r) => (r.status === 404 ? reset() : restore(s)))
+      .catch(() => restore(s))
   }, [])
 
   const handleLogin = (data) => {
