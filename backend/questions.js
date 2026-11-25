@@ -32,7 +32,7 @@ module.exports = [
   {
     id: 6,
     text: 'What does the "Task" feature inside a check-in allow you to do?',
-    options: { A: 'Schedule a site visit directly from within the check-in', B: 'Assign a check-in directly to another team member', C: 'Create a task for yourself, set reminders, mark it done, and optionally link it to an assembly to highlight it', D: 'Generate a task report and export it as a PDF' },
+    options: { A: 'Schedule a site visit directly from within the check-in', B: 'Assign a check-in directly to another team member', C: 'Create a task for yourself, set reminders, mark it done, and optionally make a check-in', D: 'Generate a task report and export it as a PDF' },
     answer: 'C',
   },
   {
@@ -91,9 +91,9 @@ module.exports = [
   },
   {
     id: 16,
-    text: 'You are searching for an assembly from the search bar. Will you see the unread check-in count badge on the search result cards?',
-    options: { A: 'Yes — the unread badge appears on all assembly cards, including search results', B: 'Yes — but only if you have unread check-ins from the last 7 days', C: 'No — the unread badge is hidden on assembly search result cards', D: 'No — search results only show the assembly name and part number' },
-    answer: 'C',
+    text: 'You have found a Welding Pinhole during the inspection. What kind of a ticket needs to be raised?',
+    options: { A: 'Fail — it is a visible defect that does not meet the quality standard', B: 'Doubt — you are uncertain whether a pinhole is a real defect', C: 'Query — to ask the team about the pinhole before logging it', D: 'CAPA — to initiate a corrective action on the welding process' },
+    answer: 'A',
   },
   {
     id: 17,
@@ -111,6 +111,12 @@ module.exports = [
     id: 19,
     text: 'What does the "My Work" section of the app show you?',
     options: { A: 'All check-ins across every assembly you have access to', B: 'Only check-ins that you personally created', C: 'Your tasks, pending approvals, drafts and your schedule', D: 'Only the check-ins that have been assigned to you by a manager' },
+    answer: 'C',
+  },
+  {
+    id: 20,
+    text: 'A customer has requested you to maintain the tolerance in the product. What kind of a ticket will you raise?',
+    options: { A: 'Check-in — to log the customer request during inspection', B: 'CCP — to flag it as a critical control point measurement', C: 'CAPA — to initiate a corrective and preventive action on the process', D: 'Query — to raise the customer request as a question to the team' },
     answer: 'C',
   },
 ]
