@@ -54,6 +54,51 @@ const getSetting = (key) => {
   return row ? row.value : null
 }
 
+// Admin password comes from the environment when set (never from the repo default in production).
+const adminPassword = () => process.env.ADMIN_PASSWORD || getSetting('admin_password')
+
+// Optional quiz window (ISO times, e.g. 2026-11-26T15:00:00+05:30). New attempts are refused outside it;
+// attempts already started can finish.
+const windowTime = (name) => {
+  const t = Date.parse(process.env[name] || '')
+  return Number.isNaN(t) ? null : t
+}
+const ist = (t) => new Date(t).toLocaleString('en-IN', {
+  timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit',
+})
+
+// Answers arriving after the timer (plus a small network grace) are ignored.
+const GRACE_MS = 15_000
+const isLate = (session) =>
+  Date.now() > session.started_at + parseInt(getSetting('timer_seconds')) * 1000 + GRACE_MS
+
+// Score a session from its saved answers (plus any answers sent with the submit) and close it.
+function scoreSession(sessionId, sentAnswers, timeTaken) {
+  const questions = require('./questions')
+  const dbAnswers = db.prepare('SELECT question_id, selected FROM answers WHERE session_id = ?').all(sessionId)
+  const answers = {}
+  for (const row of dbAnswers) answers[row.question_id] = row.selected
+  if (sentAnswers) Object.assign(answers, sentAnswers)
+
+  let score = 0
+  const insertAnswer = db.prepare(
+    'INSERT OR REPLACE INTO answers (session_id, question_id, selected, is_correct) VALUES (?, ?, ?, ?)'
+  )
+  db.transaction(() => {
+    for (const q of questions) {
+      const selected = answers[q.id] ?? null
+      // Bonus question: any response (even empty) earns the point
+      const isCorrect = q.bonus ? (selected ? 1 : 0) : (selected === q.answer ? 1 : 0)
+      if (isCorrect) score++
+      insertAnswer.run(sessionId, q.id, selected, isCorrect)
+    }
+    db.prepare(
+      'UPDATE sessions SET completed_at = ?, time_taken = ?, score = ?, total = ? WHERE id = ?'
+    ).run(Date.now(), timeTaken || 0, score, questions.length, sessionId)
+  })()
+  return { score, total: questions.length, answers, questions }
+}
+
 // POST /api/session — login + create session
 app.post('/api/session', (req, res) => {
   const { email } = req.body
@@ -67,6 +112,22 @@ app.post('/api/session', (req, res) => {
   }
 
   const timerSeconds = parseInt(getSetting('timer_seconds'))
+
+  const opensAt = windowTime('QUIZ_OPENS_AT')
+  const closesAt = windowTime('QUIZ_CLOSES_AT')
+  const resumable = db.prepare('SELECT id FROM sessions WHERE email = ? AND completed_at IS NULL').get(normalEmail)
+  if (opensAt && Date.now() < opensAt) {
+    return res.status(403).json({ error: `The quiz opens at ${ist(opensAt)} IST.` })
+  }
+  if (closesAt && Date.now() > closesAt && !resumable) {
+    return res.status(403).json({ error: `The quiz closed at ${ist(closesAt)} IST.` })
+  }
+
+  // One attempt per email.
+  const done = db.prepare('SELECT id FROM sessions WHERE email = ? AND completed_at IS NOT NULL').get(normalEmail)
+  if (done) {
+    return res.status(409).json({ error: 'You have already taken this quiz. Thank you!' })
+  }
 
   // Resume active session if timer hasn't expired
   const existing = db
@@ -84,8 +145,9 @@ app.post('/api/session', (req, res) => {
         resumed: true,
       })
     }
-    // Timer expired — abandon old session
-    db.prepare('UPDATE sessions SET completed_at = ? WHERE id = ?').run(Date.now(), existing.id)
+    // Timer expired without a submit (e.g. browser closed): score the saved answers and stop here.
+    scoreSession(existing.id, null, timerSeconds * 1000)
+    return res.status(409).json({ error: 'Your time for this quiz is over. Your saved answers have been submitted.' })
   }
 
   const sessionId = crypto.randomUUID()
@@ -101,6 +163,10 @@ app.post('/api/session', (req, res) => {
 })
 
 // GET /api/questions — questions without answers
+app.get('/api/window', (_req, res) => {
+  res.json({ opensAt: windowTime('QUIZ_OPENS_AT'), closesAt: windowTime('QUIZ_CLOSES_AT'), now: Date.now() })
+})
+
 app.get('/api/questions', (_req, res) => {
   const questions = require('./questions')
   res.json(
@@ -116,6 +182,7 @@ app.post('/api/answer', (req, res) => {
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId)
   if (!session) return res.status(404).json({ error: 'Session not found' })
   if (session.completed_at) return res.status(200).json({ ok: true }) // already done, ignore
+  if (isLate(session)) return res.status(200).json({ ok: true, late: true }) // after the timer, ignore
 
   db.prepare(
     'INSERT OR REPLACE INTO answers (session_id, question_id, selected, is_correct) VALUES (?, ?, ?, 0)'
@@ -133,33 +200,8 @@ app.post('/api/submit', (req, res) => {
   if (!session) return res.status(404).json({ error: 'Session not found' })
   if (session.completed_at) return res.status(400).json({ error: 'Quiz already submitted' })
 
-  const questions = require('./questions')
-
-  // Merge: DB-saved progressive answers as base, sent answers take priority
-  const dbAnswers = db.prepare('SELECT question_id, selected FROM answers WHERE session_id = ?').all(sessionId)
-  const answers = {}
-  for (const row of dbAnswers) answers[row.question_id] = row.selected
-  if (sentAnswers) Object.assign(answers, sentAnswers)
-
-  let score = 0
-  const insertAnswer = db.prepare(
-    'INSERT OR REPLACE INTO answers (session_id, question_id, selected, is_correct) VALUES (?, ?, ?, ?)'
-  )
-
-  const submit = db.transaction(() => {
-    for (const q of questions) {
-      const selected = answers[q.id] ?? null
-      // Bonus question: any response (even empty) earns the point
-      const isCorrect = q.bonus ? (selected ? 1 : 0) : (selected === q.answer ? 1 : 0)
-      if (isCorrect) score++
-      insertAnswer.run(sessionId, q.id, selected, isCorrect)
-    }
-    db.prepare(
-      'UPDATE sessions SET completed_at = ?, time_taken = ?, score = ?, total = ? WHERE id = ?'
-    ).run(Date.now(), timeTaken || 0, score, questions.length, sessionId)
-  })
-
-  submit()
+  // After the timer, only answers already saved in time count.
+  const { score, answers, questions } = scoreSession(sessionId, isLate(session) ? null : sentAnswers, timeTaken)
 
   const results = questions.map((q) => ({
     id: q.id,
@@ -194,7 +236,7 @@ app.post('/api/bonanza', (req, res) => {
 // Admin auth check
 const adminAuth = (req, res, next) => {
   const password = req.query.password || req.body?.password
-  if (password !== getSetting('admin_password')) {
+  if (password !== adminPassword()) {
     return res.status(401).json({ error: 'Invalid admin password' })
   }
   next()
@@ -202,7 +244,7 @@ const adminAuth = (req, res, next) => {
 
 app.post('/api/admin/verify', (req, res) => {
   const { password } = req.body
-  if (password === getSetting('admin_password')) {
+  if (password === adminPassword()) {
     res.json({ success: true })
   } else {
     res.status(401).json({ error: 'Invalid password' })
@@ -296,5 +338,5 @@ app.get('*', (_req, res) => {
 const PORT = process.env.PORT || 3001
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`ZheckIn Quiz running on http://0.0.0.0:${PORT}`)
-  console.log(`Admin panel: http://localhost:${PORT}/admin  (password: wootz2024)`)
+  console.log(`Admin panel: /admin${process.env.ADMIN_PASSWORD ? '' : '  (WARNING: ADMIN_PASSWORD not set, using the default)'}`)
 })
