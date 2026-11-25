@@ -1,0 +1,6 @@
+node_modules/
+frontend/dist/
+backend/public/assets/
+*.db
+.env
+.DS_Store

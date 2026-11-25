@@ -1,0 +1,117 @@
+module.exports = [
+  {
+    id: 1,
+    text: 'The "Overdue" metric on your dashboard flags check-ins that have...',
+    options: { A: 'Not been replied to in the last 48 hours', B: 'Not been replied to in the last 72 hours', C: 'Been open for more than 5 days without a resolution', D: 'Had no new photos added in the last 72 hours' },
+    answer: 'B',
+  },
+  {
+    id: 2,
+    text: 'Can you book a QC site visit with a calendar invite directly from the app?',
+    options: { A: 'Yes — go to My Work, then Schedule, to book a QC site visit', B: 'Yes — but only from the web dashboard, not the mobile app', C: "No — calendar invites must be created from your phone's calendar app", D: 'Yes — but only if you have manager-level access' },
+    answer: 'A',
+  },
+  {
+    id: 3,
+    text: 'What is a CCP and how do you review it in the app?',
+    options: { A: 'CCP is a Completed Check-in Process — reviewed from the Notifications page', B: "CCP is a Critical Control Point — reviewed from My Work or the assembly's CCPs tab", C: 'CCP is a Critical Check-in Protocol — reviewed by raising a new check-in', D: 'CCP is a Component Control Parameter — reviewed from the Gallery tab' },
+    answer: 'B',
+  },
+  {
+    id: 4,
+    text: 'What does the "Query" status on a check-in mean?',
+    options: { A: 'The check-in has been approved and is awaiting dispatch', B: 'The check-in has been raised with a question or concern needing a team response', C: 'The check-in is in draft and has not been submitted yet', D: 'The check-in has been automatically flagged as overdue' },
+    answer: 'B',
+  },
+  {
+    id: 5,
+    text: 'Can you star or bookmark photos in the gallery for quick access?',
+    options: { A: 'Yes — tap the star icon on any photo', B: 'Yes — but only photos you personally uploaded', C: 'No — the app only supports downloading, not starring', D: 'Yes — but only on the web version of the app' },
+    answer: 'A',
+  },
+  {
+    id: 6,
+    text: 'What does the "Task" feature inside a check-in allow you to do?',
+    options: { A: 'Schedule a site visit directly from within the check-in', B: 'Assign a check-in directly to another team member', C: 'Create a task for yourself, set reminders, mark it done, and optionally link it to an assembly to highlight it', D: 'Generate a task report and export it as a PDF' },
+    answer: 'C',
+  },
+  {
+    id: 7,
+    text: 'When saving a draft check-in, is it mandatory to select an assembly first?',
+    options: { A: 'Yes — an assembly must be selected before the draft can be saved', B: 'Yes — but only if you are an internal user', C: 'No — you can save a draft without selecting an assembly and add it later', D: 'No — but the draft will be auto-deleted after 24 hours if no assembly is linked' },
+    answer: 'C',
+  },
+  {
+    id: 8,
+    text: 'When you swipe right on the mobile app, what happens?',
+    options: { A: 'It opens the camera to capture a photo', B: 'It marks the current check-in as read', C: 'It navigates back to the previous screen', D: 'It refreshes the current screen' },
+    answer: 'A',
+  },
+  {
+    id: 9,
+    text: 'If you tap "Mark all as read" on the Notifications page, what gets cleared?',
+    options: { A: 'All unread counts — including inside assemblies and notifications', B: 'Only your notifications — the unread badge on assembly cards stays unchanged', C: 'Only notifications older than 7 days', D: 'Notifications and any pending tasks assigned to you' },
+    answer: 'B',
+  },
+  {
+    id: 10,
+    text: 'During a galvanization inspection, the coating thickness is outside the tolerance range. What status should the check-in be raised with?',
+    options: { A: 'Doubt — the measurement might be a one-off error', B: 'Dispatch — to flag it for a shipping review', C: 'Resolve — because the issue has been identified', D: 'Fail — the measurement is outside the acceptable range' },
+    answer: 'D',
+  },
+  {
+    id: 11,
+    text: 'What does the Gallery tab inside an assembly display?',
+    options: { A: 'PDF reports and documents attached to check-ins', B: 'All photos, videos and media shared across check-ins in that assembly', C: 'Only photos taken by the assigned QC inspector', D: 'Inspection tolerance charts and measurement records' },
+    answer: 'B',
+  },
+  {
+    id: 12,
+    text: 'What does CAPA stand for?',
+    options: { A: 'Checklist Approval and Process Assessment', B: 'Component Audit and Part Analysis', C: 'Corrective Action Preventive Action', D: 'Check-in and Process Automation' },
+    answer: 'C',
+  },
+  {
+    id: 13,
+    text: 'From where can a CCP review be completed in the app?',
+    options: { A: 'Only from the Dashboard overview page', B: "From My Work or from inside the assembly's CCPs tab", C: 'Only from the check-in detail view', D: 'From the Gallery tab inside the assembly' },
+    answer: 'B',
+  },
+  {
+    id: 14,
+    text: 'When searching inside the Activity tab of an assembly, what can you search by?',
+    options: { A: 'Team member name and date only', B: 'Check-in status and photo count only', C: 'Check-in description, comments and check-in number', D: 'Assembly name and QC manager name only' },
+    answer: 'C',
+  },
+  {
+    id: 15,
+    text: 'After you resolve a check-in, when does the status badge on the check-in card update?',
+    options: { A: 'After you manually refresh the page or restart the app', B: 'The next time you open the assembly', C: 'Immediately — the status badge updates on the spot without any refresh', D: 'After the manager confirms the resolution' },
+    answer: 'C',
+  },
+  {
+    id: 16,
+    text: 'You are searching for an assembly from the search bar. Will you see the unread check-in count badge on the search result cards?',
+    options: { A: 'Yes — the unread badge appears on all assembly cards, including search results', B: 'Yes — but only if you have unread check-ins from the last 7 days', C: 'No — the unread badge is hidden on assembly search result cards', D: 'No — search results only show the assembly name and part number' },
+    answer: 'C',
+  },
+  {
+    id: 17,
+    text: 'How do you sort your assemblies list in the app?',
+    options: { A: 'Using a dropdown menu labelled "Sort by" at the top of the list', B: 'Using a compact sort icon button at the top of the assemblies page', C: 'By long-pressing any assembly card to reveal sort options', D: 'Sorting is not available — assemblies are always listed by date added' },
+    answer: 'B',
+  },
+  {
+    id: 18,
+    text: 'What is the "Doubt" status on a check-in used for?',
+    options: { A: 'When the check-in needs to be reviewed before dispatch', B: 'When you are uncertain whether the finding is a fail or within acceptable limits', C: 'When the check-in has been reviewed and is waiting for final approval', D: 'When a measurement result is pending a lab confirmation' },
+    answer: 'B',
+  },
+  {
+    id: 19,
+    text: 'What does the "My Work" section of the app show you?',
+    options: { A: 'All check-ins across every assembly you have access to', B: 'Only check-ins that you personally created', C: 'Your tasks, pending approvals, drafts and your schedule', D: 'Only the check-ins that have been assigned to you by a manager' },
+    answer: 'C',
+  },
+]
+
