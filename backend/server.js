@@ -45,6 +45,12 @@ db.exec(`
   );
 `)
 
+// One answer per question per session: keep the latest row, then enforce it so INSERT OR REPLACE replaces.
+db.exec(`
+  DELETE FROM answers WHERE id NOT IN (SELECT MAX(id) FROM answers GROUP BY session_id, question_id);
+  CREATE UNIQUE INDEX IF NOT EXISTS answers_one_per_question ON answers (session_id, question_id);
+`)
+
 app.use(express.json())
 app.use(cors())
 app.use(express.static(path.join(__dirname, 'public')))
