@@ -1,3 +1,4 @@
+import { QUESTIONS as BONANZA_QUESTIONS } from './Bonanza.jsx'
 import React, { useState, useEffect } from 'react'
 import { Logo } from './Logo.jsx'
 
@@ -270,6 +271,25 @@ export default function Admin() {
                                   </div>
                                 </div>
                               ))}
+                            </div>
+                            <div style={{ color: 'var(--text-3)', fontSize: 11, letterSpacing: 1, margin: '16px 0 8px', textTransform: 'uppercase' }}>
+                              Bonanza answers
+                            </div>
+                            <div style={{ display: 'grid', gap: 8 }}>
+                              {BONANZA_QUESTIONS.map((q) => {
+                                const b = (r.bonanza || []).find((x) => x.question_no === q.no)
+                                return (
+                                  <div key={q.no} style={{
+                                    padding: '9px 12px', background: 'var(--surface, rgba(255,255,255,0.03))', borderRadius: 6,
+                                    borderLeft: '2.5px solid var(--warn)', fontSize: 13,
+                                  }}>
+                                    <div style={{ color: 'var(--text-3)', marginBottom: 4 }}>B{q.no}. {q.text}</div>
+                                    <div style={{ color: b?.answer ? 'var(--text)' : 'var(--warn)', whiteSpace: 'pre-wrap' }}>
+                                      {b?.answer || 'No answer'}
+                                    </div>
+                                  </div>
+                                )
+                              })}
                             </div>
                           </td>
                         </tr>

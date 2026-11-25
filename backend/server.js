@@ -311,24 +311,24 @@ app.get('/api/admin/export', adminAuth, (req, res) => {
     .all()
   const questions = require('./questions')
 
-  let csv = 'Email,Score,Percentage,TimeTaken(s),SubmittedAt'
-  questions.forEach((q) => { csv += `,Q${q.id}` })
-  csv += '\n'
+  const cell = (v) => {
+    const t = v === null || v === undefined ? '' : String(v)
+    return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t
+  }
+  const bonanzaNos = [1, 2, 3]
+  let csv = ['Email', 'Score', 'Percentage', 'TimeTaken(s)', 'SubmittedAt',
+    ...questions.map((q) => `Q${q.id}`), ...bonanzaNos.map((n) => `Bonanza${n}`)].join(',') + '\n'
 
   for (const s of sessions) {
-    const answers = db
-      .prepare('SELECT * FROM answers WHERE session_id = ? ORDER BY question_id')
-      .all(s.id)
+    const answers = db.prepare('SELECT * FROM answers WHERE session_id = ?').all(s.id)
+    const bonanza = db.prepare('SELECT question_no, answer FROM bonanza_answers WHERE session_id = ?').all(s.id)
     const pct = s.total ? Math.round((s.score / s.total) * 100) : 0
     const timeSec = s.time_taken ? Math.floor(s.time_taken / 1000) : ''
     const submittedAt = s.completed_at ? new Date(s.completed_at).toISOString() : ''
-
-    csv += `${s.email},${s.score}/${s.total},${pct}%,${timeSec},${submittedAt}`
-    questions.forEach((q) => {
-      const a = answers.find((a) => a.question_id === q.id)
-      csv += `,${a?.selected ?? ''}`
-    })
-    csv += '\n'
+    csv += [s.email, `${s.score}/${s.total}`, `${pct}%`, timeSec, submittedAt,
+      ...questions.map((q) => answers.find((a) => a.question_id === q.id)?.selected ?? ''),
+      ...bonanzaNos.map((n) => bonanza.find((b) => b.question_no === n)?.answer ?? ''),
+    ].map(cell).join(',') + '\n'
   }
 
   res.setHeader('Content-Type', 'text/csv')

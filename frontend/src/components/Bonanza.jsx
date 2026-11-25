@@ -3,7 +3,7 @@ import { Logo } from './Logo.jsx'
 
 const BONANZA_TIMER = 300 // 5 minutes per question
 
-const QUESTIONS = [
+export const QUESTIONS = [
   {
     no: 1,
     text: 'How do you use the Draft check-in functionality in your day-to-day work?',
