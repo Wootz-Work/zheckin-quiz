@@ -117,7 +117,7 @@ module.exports = [
     id: 20,
     text: 'A customer has requested you to maintain the tolerance in the product. What kind of a ticket will you raise?',
     options: { A: 'Check-in — to log the customer request during inspection', B: 'CCP — to flag it as a critical control point measurement', C: 'CAPA — to initiate a corrective and preventive action on the process', D: 'Query — to raise the customer request as a question to the team' },
-    answer: 'C',
+    answer: 'B',
   },
 ]
 
